@@ -31,6 +31,7 @@
   "author": "Subhendu Kundu",
   "license": "MIT",
   "dependencies": {
-    "react-native-webview": "^5.12.1"
+    "react-native-webview": "^5.12.1",
+    "axios": "^0.20.0"
   }
 }

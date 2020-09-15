@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from 'react-native';
 import { WebView } from 'react-native-webview';
+import axios from 'axios';
 
 const GOOGLE_AUTHORIZATION_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://www.googleapis.com/oauth2/v4/token';
@@ -13,8 +14,8 @@ function parse(querystring) {
     let pair = void 0;
     const d = decodeURIComponent;
     for (let i = querystring.length - 1; i >= 0; i--) {
-      pair = querystring[i].split('=');
-      params[d(pair[0])] = d(pair[1] || '');
+        pair = querystring[i].split('=');
+        params[d(pair[0])] = d(pair[1] || '');
     }
     return params;
 }
@@ -29,9 +30,9 @@ function parse(querystring) {
 function querystring(obj) {
     const keyValuePairs = [];
     for (const key in obj) {
-      if (obj[key] !== undefined) {
-          keyValuePairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]));
-      }
+        if (obj[key] !== undefined) {
+            keyValuePairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]));
+        }
     }
     return keyValuePairs.join('&');
 }
@@ -43,7 +44,7 @@ class ReactNativeGoogleSheet {
     }
 
     async append(...arg) {
-        const { 
+        const {
             valueInputOption = 'RAW',
             insertDataOption,
             includeValuesInResponse,
@@ -114,13 +115,15 @@ class ReactNativeGoogleSheet {
             valueRenderOption,
             ...rest
         };
-        const response = fetch(`${spreadsheetsApi}${spreadsheetId}/values:batchGet?${querystring(params)}`, {
-            method: "GET", 
+
+        const response = await axios(`${spreadsheetsApi}${spreadsheetId}/values:batchGet`, {
+            params,
             headers: {
                 'Content-Type': 'application/json; charset=UTF-8',
                 'Authorization': `Bearer ${accessToken}`,
             }
         });
+
         return response;
     }
 
@@ -190,7 +193,7 @@ class ReactNativeGoogleSheet {
     }
 
     async get(...arg) {
-        const { 
+        const {
             range,
             dateTimeRenderOption,
             majorDimension,
@@ -204,7 +207,7 @@ class ReactNativeGoogleSheet {
             ...rest
         };
         const response = fetch(`${spreadsheetsApi}${spreadsheetId}/values/${range}?${querystring(params)}`, {
-            method: "GET", 
+            method: "GET",
             headers: {
                 'Content-Type': 'application/json; charset=UTF-8',
                 'Authorization': `Bearer ${accessToken}`,
@@ -214,7 +217,7 @@ class ReactNativeGoogleSheet {
     }
 
     async update(...arg) {
-        const { 
+        const {
             range = "A1",
             includeValuesInResponse,
             responseDateTimeRenderOption,
@@ -245,15 +248,15 @@ class ReactNativeGoogleSheet {
         this.spreadsheetId = spreadsheetId;
         const { redirectUrl = 'https://localhost', clientId } = credentialsDetails;
         const [ isLoggedIn, setLoggedIn ] = useState(false);
-        
+
         const urlParams = {
-          response_type: 'code',
-          redirect_uri: redirectUrl,
-          client_id: clientId,
-          scope: 'profile email openid https://spreadsheets.google.com/feeds',
+            response_type: 'code',
+            redirect_uri: redirectUrl,
+            client_id: clientId,
+            scope: 'profile email openid https://spreadsheets.google.com/feeds',
         };
         const authUrl = `${GOOGLE_AUTHORIZATION_URL}?${querystring(urlParams)}`;
-      
+
         async function fetchAccessTokens(code) {
             const params = {
                 code,
@@ -269,10 +272,10 @@ class ReactNativeGoogleSheet {
             });
             return response.json();
         }
-      
+
         async function fetchUserDetails(accessToken) {
             const response = await fetch(GOOGLE_PROFILE_URL, {
-                method: "GET", 
+                method: "GET",
                 headers: {
                     'Content-Type': 'application/json; charset=UTF-8',
                     'Authorization': `Bearer ${accessToken}`,
@@ -281,50 +284,50 @@ class ReactNativeGoogleSheet {
             return response.json();
         }
         function handleNavigation(url) {
-          const query = parse(url);
-          if (query) {
-            if (query.code) {
-              setLoggedIn(true);
-              fetchAccessTokens(query.code).then((tokenData) => {
-                const token = tokenData.access_token;
-                if (typeof getAccessToken === 'function') {
-                  getAccessToken(token);
+            const query = parse(url);
+            if (query) {
+                if (query.code) {
+                    setLoggedIn(true);
+                    fetchAccessTokens(query.code).then((tokenData) => {
+                        const token = tokenData.access_token;
+                        if (typeof getAccessToken === 'function') {
+                            getAccessToken(token);
+                        }
+                        this.accessToken = token;
+                        fetchUserDetails(token).then((userData) => {
+                            if (typeof getUserDetails === 'function') {
+                                getUserDetails(userData);
+                            }
+                        });
+                    }).catch(e => console.log(e));
                 }
-                this.accessToken = token;
-                fetchUserDetails(token).then((userData) => {
-                  if (typeof getUserDetails === 'function') {
-                      getUserDetails(userData);
-                  }
-                });
-              }).catch(e => console.log(e));
             }
-          }
         }
         function onNavigationStateChange(e) {
-          handleNavigation(e.url);
+            handleNavigation(e.url);
         }
-      
+
         return (
             <>
-            {
-                isLoggedIn ? null :
-                <Modal>
-                    <WebView
-                        useWebKit
-                        sharedCookiesEnabled
-                        source={{ uri: authUrl }}
-                        mixedContentMode="compatibility"
-                        javaScriptEnabled
-                        javaScriptEnabledAndroid
-                        bounces
-                        userAgent = "Mozilla/5.0 (Linux; Android 4.1.1; Galaxy Nexus Build/JRO03C) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.166 Mobile Safari/535.19"
-                        domStorageEnabled
-                        thirdPartyCookiesEnabled
-                        originWhitelist={['*']}
-                        onNavigationStateChange={onNavigationStateChange}
-                    />
-                </Modal>
-            }
+                {
+                    isLoggedIn ? null :
+                        <Modal>
+                            <WebView
+                                useWebKit
+                                sharedCookiesEnabled
+                                source={{ uri: authUrl }}
+                                mixedContentMode="compatibility"
+                                javaScriptEnabled
+                                javaScriptEnabledAndroid
+                                bounces
+                                userAgent = "Mozilla/5.0 (Linux; Android 4.1.1; Galaxy Nexus Build/JRO03C) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.166 Mobile Safari/535.19"
+                                domStorageEnabled
+                                thirdPartyCookiesEnabled
+                                originWhitelist={['*']}
+                                onNavigationStateChange={onNavigationStateChange}
+                            />
+                        </Modal>
+                }
             </>
         );
     }
