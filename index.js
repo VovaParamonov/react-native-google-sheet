@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import { Modal } from 'react-native';
 import { WebView } from 'react-native-webview';
 import axios from 'axios';
@@ -116,13 +116,13 @@ class ReactNativeGoogleSheet {
             ...rest
         };
 
-        const response = await axios(`${spreadsheetsApi}${spreadsheetId}/values:batchGet`, {
+        const response = await axios.get(`${spreadsheetsApi}${spreadsheetId}/values:batchGet`, {
             params,
             headers: {
                 'Content-Type': 'application/json; charset=UTF-8',
                 'Authorization': `Bearer ${accessToken}`,
             }
-        });
+        })
 
         return response;
     }
@@ -244,10 +244,30 @@ class ReactNativeGoogleSheet {
     }
 
     GoogleSheet(props) {
-        const { credentialsDetails, getAccessToken, getUserDetails, spreadsheetId } = props;
+        const {
+            credentialsDetails,
+            getAccessToken,
+            getUserDetails,
+            spreadsheetId,
+            initToken
+        } = props;
         this.spreadsheetId = spreadsheetId;
         const { redirectUrl = 'https://localhost', clientId } = credentialsDetails;
-        const [ isLoggedIn, setLoggedIn ] = useState(false);
+        const [ isLoggedIn, setLoggedIn ] = useState(initToken? true : false);
+
+        useEffect(() => {
+            if (initToken) {
+                this.accessToken = initToken;
+            }
+        }, [])
+
+
+        useEffect(() => {
+            if (initToken === null) {
+                this.accessToken = null;
+                setLoggedIn(false);
+            }
+        }, [initToken])
 
         const urlParams = {
             response_type: 'code',
@@ -264,6 +284,7 @@ class ReactNativeGoogleSheet {
                 redirect_uri: redirectUrl,
                 grant_type: 'authorization_code',
             };
+
             const response = await fetch(`${GOOGLE_TOKEN_URL}?${querystring(params)}`, {
                 method: 'POST',
                 headers: {
@@ -289,10 +310,12 @@ class ReactNativeGoogleSheet {
                 if (query.code) {
                     setLoggedIn(true);
                     fetchAccessTokens(query.code).then((tokenData) => {
+
                         const token = tokenData.access_token;
                         if (typeof getAccessToken === 'function') {
                             getAccessToken(token);
                         }
+
                         this.accessToken = token;
                         fetchUserDetails(token).then((userData) => {
                             if (typeof getUserDetails === 'function') {
